@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cybeats vulnrichment record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["_annotation", "cve"],
+  "properties": {
+    "_annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cve_id", "reason"],
+      "properties": {
+        "cve_id": { "type": "string", "pattern": "^CVE-\\d{4}-\\d{4,}$" },
+        "reason": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "references": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "format": "uri", "pattern": "^https?://" }
+        }
+      }
+    },
+    "cve": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["configurations"],
+      "properties": {
+        "configurations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["nodes"],
+            "properties": {
+              "operator": { "enum": ["AND", "OR"] },
+              "negate": { "type": "boolean" },
+              "nodes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } }
+            }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "cvssMetricV40": { "$ref": "#/$defs/cvssMetric", "items": { "properties": { "cvssData": { "properties": { "version": { "const": "4.0" }, "vectorString": { "pattern": "^CVSS:4\\.0/" } } } } } },
+            "cvssMetricV31": { "$ref": "#/$defs/cvssMetric", "items": { "properties": { "cvssData": { "properties": { "version": { "const": "3.1" }, "vectorString": { "pattern": "^CVSS:3\\.1/" } } } } } },
+            "cvssMetricV30": { "$ref": "#/$defs/cvssMetric", "items": { "properties": { "cvssData": { "properties": { "version": { "const": "3.0" }, "vectorString": { "pattern": "^CVSS:3\\.0/" } } } } } },
+            "cvssMetricV2": { "$ref": "#/$defs/cvssMetric", "items": { "properties": { "cvssData": { "properties": { "version": { "const": "2.0" }, "vectorString": { "pattern": "^AV:[LAN]/" } } } } } }
+          }
+        },
+        "weaknesses": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["description"],
+            "properties": {
+              "description": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["lang", "value"],
+                  "properties": {
+                    "lang": { "type": "string", "pattern": "^[a-z]{2}$" },
+                    "value": { "type": "string", "pattern": "^(CWE-\\d+|NVD-CWE-Other|NVD-CWE-noinfo)$" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operator"],
+      "not": { "not": { "anyOf": [{ "required": ["cpeMatch"] }, { "required": ["children"] }] } },
+      "errorMessage": { "not": "must contain cpeMatch or children" },
+      "properties": {
+        "operator": { "enum": ["AND", "OR"] },
+        "negate": { "type": "boolean" },
+        "cpeMatch": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/cpeMatch" } },
+        "children": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } }
+      }
+    },
+    "cpeMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["criteria", "vulnerable"],
+      "properties": {
+        "criteria": { "type": "string", "pattern": "^cpe:2\\.3:[aho](:(?:[^:\\\\\\s]|\\\\[^\\s])+){10}$" },
+        "vulnerable": { "type": "boolean" },
+        "versionStartIncluding": { "$ref": "#/$defs/version" },
+        "versionStartExcluding": { "$ref": "#/$defs/version" },
+        "versionEndIncluding": { "$ref": "#/$defs/version" },
+        "versionEndExcluding": { "$ref": "#/$defs/version" }
+      },
+      "not": {
+        "anyOf": [
+          { "required": ["versionStartIncluding", "versionStartExcluding"] },
+          { "required": ["versionEndIncluding", "versionEndExcluding"] }
+        ]
+      },
+      "errorMessage": { "not": "must not set both the Including and Excluding variant of versionStart or versionEnd" }
+    },
+    "version": { "type": "string", "pattern": "^\\S+$" },
+    "cvssMetric": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["cvssData"],
+        "properties": {
+          "cvssData": {
+            "type": "object",
+            "required": ["version", "vectorString", "baseScore"],
+            "properties": {
+              "version": { "type": "string" },
+              "vectorString": { "type": "string" },
+              "baseScore": { "type": "number", "minimum": 0, "maximum": 10 },
+              "baseSeverity": { "enum": ["NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"] }
+            }
+          }
+        }
+      }
+    }
+  }
+}
